@@ -7,6 +7,10 @@
 
 A modern implementation of the Steamworks SDK for HTML/JS and NodeJS based applications.
 
+> (**FORK**) This fork exposes a method to fetch the Steam player avatar as a PNG image, which is useful for Electron apps that want to display the avatar in an `<img>` tag.
+>
+> [See the Avatars section](#avatars) below for an explanation of how to use this additional feature.
+
 ## Why
 
 I used [greenworks](https://github.com/greenheartgames/greenworks) for a long time and it's great, but I gave up for the following reasons.
@@ -69,6 +73,68 @@ require('steamworks.js').electronEnableSteamOverlay()
 ```
 
 For the production build, copy the relevant distro files from `sdk/redistributable_bin/{YOUR_DISTRO}` into the root of your build. If you are using electron-forge, look for [#75](https://github.com/ceifa/steamworks.js/issues/75).
+
+
+## Avatars
+
+Steam avatars are exposed through the `friends` namespace as raw RGBA pixel data:
+
+```js
+const avatar = client.friends.getAvatar(steamId64, client.friends.AvatarSize.Medium)
+// => { data: Buffer, width: 64, height: 64 } or null
+```
+
+Steam only knows about users the local user shares a source with — friends, members of the same lobby, players on the same game server. For anyone else, and whenever `getAvatar` returns `null`, the avatar has to be fetched asynchronously:
+
+```js
+client.friends.requestUserInformation(steamId64, false)
+
+const handle = client.callback.register(SteamCallback.PersonaStateChange, (value) => {
+    if (value.steam_id !== steamId64) return
+
+    const avatar = client.friends.getAvatar(steamId64, client.friends.AvatarSize.Medium)
+    if (avatar) handle.disconnect()
+})
+```
+
+`init` already pumps the Steam callbacks for you, so the handler above fires on its own. Never busy-loop on `getAvatar` waiting for it to become non-null.
+
+### Using it in an `<img />`
+
+`getAvatar` returns pixels, not a URL, so the buffer has to go through a canvas first. This helper turns it into a `data:` URL you can assign straight to `img.src`:
+
+```js
+function getAvatarUrl(steamId64, size = client.friends.AvatarSize.Medium) {
+    const avatar = client.friends.getAvatar(steamId64, size)
+    if (!avatar) return null
+
+    const canvas = document.createElement('canvas')
+    canvas.width = avatar.width
+    canvas.height = avatar.height
+
+    const image = new ImageData(new Uint8ClampedArray(avatar.data), avatar.width, avatar.height)
+    canvas.getContext('2d').putImageData(image, 0, 0)
+
+    return canvas.toDataURL('image/png')
+}
+
+const url = getAvatarUrl(steamId64)
+if (url) document.querySelector('#avatar').src = url
+```
+
+Pass `avatar.data` itself to `Uint8ClampedArray`, never `avatar.data.buffer` — Node pools small buffers, so the underlying `ArrayBuffer` usually holds unrelated bytes at a nonzero offset and you would get garbage.
+
+If you are rendering many avatars at once, a data URL keeps the whole PNG alive as a string. Prefer an object URL and release it when the image is gone:
+
+```js
+canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob)
+    img.src = url
+    img.onload = () => URL.revokeObjectURL(url)
+}, 'image/png')
+```
+
+Both snippets need `document`, so they belong in the renderer process. In Electron, either init steamworks.js in the renderer, or fetch the avatar in the main process and send `{ data, width, height }` over IPC.
 
 
 ## How to build

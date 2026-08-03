@@ -77,6 +77,46 @@ export declare namespace cloud {
     size: bigint
   }
 }
+export declare namespace friends {
+  export const enum AvatarSize {
+    Small = 0,
+    Medium = 1,
+    Large = 2
+  }
+  export interface Avatar {
+    /** Raw RGBA pixel data, 4 bytes per pixel, row-major from the top-left. */
+    data: Buffer
+    width: number
+    height: number
+  }
+  /**
+   * Gets the avatar of any user Steam already knows about, in raw RGBA format.
+   *
+   * Steam only knows about users the local user shares a "source" with: friends,
+   * members of the same lobby, players on the same game server, etc. For anyone
+   * else, call `requestUserInformation` first.
+   *
+   * Returns `null` when the avatar is not cached yet. In that case, register a
+   * `PersonaStateChange` callback, wait for it to fire for this steam id, then
+   * call this function again. Do not busy-loop.
+   *
+   * {@link https://partner.steamgames.com/doc/api/ISteamFriends#GetLargeFriendAvatar}
+   */
+  export function getAvatar(steamId64: bigint, size: AvatarSize): Avatar | null
+  /**
+   * Asks Steam to cache the persona name and avatar of a user it does not know
+   * about yet.
+   *
+   * @param nameOnly - When true, the avatar is not downloaded. Downloading
+   * avatars is slow and churns the local cache, so pass true if you only need
+   * the name.
+   *
+   * @returns true if the information is being requested, in which case a
+   * `PersonaStateChange` callback will fire once it arrives. Returns false if
+   * Steam already has everything, meaning `getAvatar` can be called right away.
+   */
+  export function requestUserInformation(steamId64: bigint, nameOnly: boolean): boolean
+}
 export declare namespace input {
   export const enum InputType {
     Unknown = 'Unknown',
@@ -336,6 +376,7 @@ export declare namespace workshop {
    * @returns an array of subscribed workshop item ids
    */
   export function getSubscribedItems(): Array<bigint>
+  export function deleteItem(itemId: bigint): Promise<void>
   export const enum UGCQueryType {
     RankedByVote = 0,
     RankedByPublicationDate = 1,
