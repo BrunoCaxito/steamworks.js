@@ -1,5 +1,10 @@
 /target
-/dist
+# Upstream publishes the prebuilt binaries through npm, so it can ignore all of
+# dist. This fork is consumed straight from git instead, which packs only what
+# is committed: the Windows build has to be tracked or every install lands
+# without a native binding.
+/dist/*
+!/dist/win64
 node_modules
 test/**/package-lock.json
 test/electron/steamworks.js-electron-test-*
