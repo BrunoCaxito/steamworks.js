@@ -93,4 +93,15 @@ pub mod networking {
             .networking()
             .accept_p2p_session(SteamId::from_raw(steam_id64.get_u64().1));
     }
+
+    /// Tears down the P2P session with a peer and drops anything still queued for
+    /// them. Every accepted session needs this when the peer leaves — Steam keeps the
+    /// session, and its buffers, alive until someone closes it.
+    #[napi]
+    pub fn close_p2p_session(steam_id64: BigInt) {
+        let client = crate::client::get_client();
+        client
+            .networking()
+            .close_p2p_session(SteamId::from_raw(steam_id64.get_u64().1));
+    }
 }

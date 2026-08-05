@@ -13,6 +13,21 @@ export const enum ChatMemberStateChange {
     Banned,
 }
 
+export const enum ChatEntryType {
+    Invalid = 'Invalid',
+    ChatMsg = 'ChatMsg',
+    Typing = 'Typing',
+    InviteGame = 'InviteGame',
+    Emote = 'Emote',
+    LeftConversation = 'LeftConversation',
+    Entered = 'Entered',
+    WasKicked = 'WasKicked',
+    WasBanned = 'WasBanned',
+    Disconnected = 'Disconnected',
+    HistoricalChat = 'HistoricalChat',
+    LinkBlocked = 'LinkBlocked',
+}
+
 export interface CallbackReturns {
     [client.callback.SteamCallback.PersonaStateChange]: {
         steam_id: bigint
@@ -37,6 +52,13 @@ export interface CallbackReturns {
         making_change: bigint
         member_state_change: ChatMemberStateChange
     }
+    /** A member sent a message through `lobby.sendChatMessage`. Read it with `lobby.getChatEntry(chat_id)` from inside the handler. */
+    [client.callback.SteamCallback.LobbyChatMsg]: {
+        lobby: bigint
+        user: bigint
+        chat_entry_type: ChatEntryType
+        chat_id: number
+    }
     [client.callback.SteamCallback.P2PSessionRequest]: {
         remote: bigint
     }
@@ -47,6 +69,10 @@ export interface CallbackReturns {
     [client.callback.SteamCallback.GameLobbyJoinRequested]: {
         lobby_steam_id: bigint
         friend_steam_id: bigint
+    }
+    /** The Steam overlay opened or closed on top of the game. Pause on `active`. */
+    [client.callback.SteamCallback.GameOverlayActivated]: {
+        active: boolean
     }
     [client.callback.SteamCallback.MicroTxnAuthorizationResponse]: {
         app_id: number

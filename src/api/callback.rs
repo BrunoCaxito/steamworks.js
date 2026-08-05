@@ -30,9 +30,11 @@ pub mod callback {
         SteamServerConnectFailure,
         LobbyDataUpdate,
         LobbyChatUpdate,
+        LobbyChatMsg,
         P2PSessionRequest,
         P2PSessionConnectFail,
         GameLobbyJoinRequested,
+        GameOverlayActivated,
         MicroTxnAuthorizationResponse,
     }
 
@@ -65,6 +67,9 @@ pub mod callback {
             SteamCallback::LobbyChatUpdate => {
                 register_callback::<steamworks::LobbyChatUpdate>(threadsafe_handler)
             }
+            SteamCallback::LobbyChatMsg => {
+                register_callback::<steamworks::LobbyChatMsg>(threadsafe_handler)
+            }
             SteamCallback::P2PSessionRequest => {
                 register_callback::<steamworks::P2PSessionRequest>(threadsafe_handler)
             }
@@ -73,6 +78,9 @@ pub mod callback {
             }
             SteamCallback::GameLobbyJoinRequested => {
                 register_callback::<steamworks::GameLobbyJoinRequested>(threadsafe_handler)
+            }
+            SteamCallback::GameOverlayActivated => {
+                register_callback::<steamworks::GameOverlayActivated>(threadsafe_handler)
             }
             SteamCallback::MicroTxnAuthorizationResponse => {
                 register_callback::<steamworks::MicroTxnAuthorizationResponse>(threadsafe_handler)

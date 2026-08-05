@@ -50,9 +50,19 @@ pub mod localplayer {
         client.utils().ip_country()
     }
 
+    /// Publishes a value other players of this game can read back with
+    /// `friends.getRichPresence`. Passing no value clears that one key.
     #[napi]
     pub fn set_rich_presence(key: String, value: Option<String>) {
         let client = crate::client::get_client();
         client.friends().set_rich_presence(&key, value.as_deref());
+    }
+
+    /// Clears every rich presence key at once. Worth calling when leaving a lobby or
+    /// match, so the local player stops advertising a session that is over.
+    #[napi]
+    pub fn clear_rich_presence() {
+        let client = crate::client::get_client();
+        client.friends().clear_rich_presence();
     }
 }
