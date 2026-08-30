@@ -513,6 +513,15 @@ export declare namespace networking {
    * the session, and its buffers, alive until someone closes it.
    */
   export function closeSessionWithUser(steamId64: bigint): boolean
+  /**
+   * The current ping to a peer in milliseconds, or null when there is no live
+   * session with them.
+   *
+   * Sends nothing. A session runs on a connection that already times its own
+   * round trip — it has to, to keep itself alive and notice a timeout — so
+   * this only reads the number that connection is already keeping.
+   */
+  export function getSessionPing(steamId64: bigint): number | null
 }
 export declare namespace overlay {
   export const enum Dialog {

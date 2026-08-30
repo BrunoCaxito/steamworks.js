@@ -175,4 +175,48 @@ pub mod networking {
             )
         }
     }
+
+    /// The current ping to a peer in milliseconds, or null when there is no live
+    /// session with them.
+    ///
+    /// Sends nothing. A session runs on a connection that already times its own
+    /// round trip — it has to, to keep itself alive and notice a timeout — so
+    /// this only reads the number that connection is already keeping.
+    #[napi]
+    pub fn get_session_ping(steam_id64: BigInt) -> Option<i32> {
+        let steam_id64 = steam_id64.get_u64().1;
+
+        unsafe {
+            let mut identity = sys::SteamNetworkingIdentity {
+                m_eType: sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_Invalid,
+                m_cbSize: 0,
+                __bindgen_anon_1: sys::SteamNetworkingIdentity__bindgen_ty_2 { m_steamID64: 0 },
+            };
+            sys::SteamAPI_SteamNetworkingIdentity_Clear(&mut identity);
+            sys::SteamAPI_SteamNetworkingIdentity_SetSteamID64(&mut identity, steam_id64);
+
+            // Both out-parameters are handed a struct even though only the ping
+            // is read: two stack structs cost nothing, and the flat API's rules
+            // about which of them may be null are not worth depending on.
+            let mut info: sys::SteamNetConnectionInfo_t = std::mem::zeroed();
+            let mut status: sys::SteamNetConnectionRealTimeStatus_t = std::mem::zeroed();
+
+            let state = sys::SteamAPI_ISteamNetworkingMessages_GetSessionConnectionInfo(
+                sys::SteamAPI_SteamNetworkingMessages_SteamAPI_v002(),
+                &identity,
+                &mut info,
+                &mut status,
+            );
+
+            // Only a connected session has a round trip to report. Every other
+            // state — no session, still connecting, broken — has no number, and
+            // reporting the 0 left in the struct would read as a perfect link.
+            match state {
+                sys::ESteamNetworkingConnectionState::k_ESteamNetworkingConnectionState_Connected => {
+                    Some(status.m_nPing)
+                }
+                _ => None,
+            }
+        }
+    }
 }
