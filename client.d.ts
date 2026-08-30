@@ -465,46 +465,54 @@ export declare namespace matchmaking {
   }
 }
 export declare namespace networking {
-  export interface P2PPacket {
+  export interface NetworkingMessage {
     data: Buffer
-    size: number
     steamId: PlayerSteamId
   }
-  /** The method used to send a packet */
+  /** The delivery guarantee for a message */
   export const enum SendType {
     /**
-     * Send the packet directly over udp.
-     *
-     * Can't be larger than 1200 bytes
+     * May be dropped or arrive out of order.
+     * A single datagram on the wire: can't be larger than ~1200 bytes.
      */
     Unreliable = 0,
     /**
-     * Like `Unreliable` but doesn't buffer packets
-     * sent before the connection has started.
+     * Delivered exactly once and in order, fragmented and
+     * reassembled as needed. Can't be larger than 512 KB.
      */
-    UnreliableNoDelay = 1,
-    /**
-     * Reliable packet sending.
-     *
-     * Can't be larger than 1 megabyte.
-     */
-    Reliable = 2,
-    /**
-     * Like `Reliable` but applies the nagle
-     * algorithm to packets being sent
-     */
-    ReliableWithBuffering = 3
+    Reliable = 1
   }
-  export function sendP2PPacket(steamId64: bigint, sendType: SendType, data: Buffer): boolean
-  export function isP2PPacketAvailable(): number
-  export function readP2PPacket(size: number): P2PPacket
-  export function acceptP2PSession(steamId64: bigint): void
   /**
-   * Tears down the P2P session with a peer and drops anything still queued for
-   * them. Every accepted session needs this when the peer leaves — Steam keeps the
-   * session, and its buffers, alive until someone closes it.
+   * Send a message to another user. A session with them is opened implicitly
+   * if needed; delivery starts once they accept it.
    */
-  export function closeP2PSession(steamId64: bigint): void
+  export function sendMessageToUser(steamId64: bigint, sendType: SendType, data: Buffer, channel: number): void
+  /**
+   * Read up to `batch_size` messages pending on `channel`.
+   * Returns fewer, possibly none, when the queue runs out.
+   */
+  export function receiveMessagesOnChannel(channel: number, batchSize: number): Array<NetworkingMessage>
+  /**
+   * Register the handler deciding who may open a session. Steam holds the
+   * peer's first messages until the request is accepted, so the handler must
+   * answer with `acceptSessionRequest` or `rejectSessionRequest`.
+   *
+   * Calling this again replaces the previous handler.
+   */
+  export function onSessionRequest(handler: (steamId64: bigint) => void): void
+  /**
+   * Accept a session request announced by `onSessionRequest`.
+   * Returns false when no request from that peer is waiting.
+   */
+  export function acceptSessionRequest(steamId64: bigint): boolean
+  /** Reject a session request announced by `onSessionRequest`. */
+  export function rejectSessionRequest(steamId64: bigint): void
+  /**
+   * Tears down the session with a peer and drops anything still queued for
+   * them. Every accepted session needs this when the peer leaves — Steam keeps
+   * the session, and its buffers, alive until someone closes it.
+   */
+  export function closeSessionWithUser(steamId64: bigint): boolean
 }
 export declare namespace overlay {
   export const enum Dialog {
