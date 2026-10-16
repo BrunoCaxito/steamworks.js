@@ -502,7 +502,8 @@ export declare namespace networking {
   export function onSessionRequest(handler: (steamId64: bigint) => void): void
   /**
    * Accept a session request announced by `onSessionRequest`.
-   * Returns false when no request from that peer is waiting.
+   * Returns false when no request from that peer is waiting, or when Steam
+   * no longer has a connection from them to accept.
    */
   export function acceptSessionRequest(steamId64: bigint): boolean
   /** Reject a session request announced by `onSessionRequest`. */

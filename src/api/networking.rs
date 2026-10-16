@@ -120,19 +120,28 @@ pub mod networking {
     }
 
     /// Accept a session request announced by `onSessionRequest`.
-    /// Returns false when no request from that peer is waiting.
+    /// Returns false when no request from that peer is waiting, or when Steam
+    /// no longer has a connection from them to accept.
     #[napi]
     pub fn accept_session_request(steam_id64: BigInt) -> bool {
-        match SESSION_REQUESTS
-            .lock()
-            .unwrap()
-            .remove(&steam_id64.get_u64().1)
-        {
-            Some(request) => {
-                request.accept();
-                true
-            }
-            None => false,
+        let steam_id64 = steam_id64.get_u64().1;
+
+        let Some(request) = SESSION_REQUESTS.lock().unwrap().remove(&steam_id64) else {
+            return false;
+        };
+
+        // The pinned steamworks-rs closes the session in `SessionRequest`'s Drop
+        // even after `accept()`, so every session died the moment it was accepted.
+        // Accepting through the raw binding and forgetting the request skips that
+        // Drop; all it keeps alive is one reference to the client, which lives for
+        // the whole process anyway. Remove once steamworks-rs is past the fix.
+        std::mem::forget(request);
+
+        unsafe {
+            sys::SteamAPI_ISteamNetworkingMessages_AcceptSessionWithUser(
+                sys::SteamAPI_SteamNetworkingMessages_SteamAPI_v002(),
+                &steam_identity(steam_id64),
+            )
         }
     }
 
@@ -161,17 +170,9 @@ pub mod networking {
         // The safe wrapper only closes a session while rejecting a request, so an
         // established session has to be closed through the raw binding.
         unsafe {
-            let mut identity = sys::SteamNetworkingIdentity {
-                m_eType: sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_Invalid,
-                m_cbSize: 0,
-                __bindgen_anon_1: sys::SteamNetworkingIdentity__bindgen_ty_2 { m_steamID64: 0 },
-            };
-            sys::SteamAPI_SteamNetworkingIdentity_Clear(&mut identity);
-            sys::SteamAPI_SteamNetworkingIdentity_SetSteamID64(&mut identity, steam_id64);
-
             sys::SteamAPI_ISteamNetworkingMessages_CloseSessionWithUser(
                 sys::SteamAPI_SteamNetworkingMessages_SteamAPI_v002(),
-                &identity,
+                &steam_identity(steam_id64),
             )
         }
     }
@@ -187,14 +188,6 @@ pub mod networking {
         let steam_id64 = steam_id64.get_u64().1;
 
         unsafe {
-            let mut identity = sys::SteamNetworkingIdentity {
-                m_eType: sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_Invalid,
-                m_cbSize: 0,
-                __bindgen_anon_1: sys::SteamNetworkingIdentity__bindgen_ty_2 { m_steamID64: 0 },
-            };
-            sys::SteamAPI_SteamNetworkingIdentity_Clear(&mut identity);
-            sys::SteamAPI_SteamNetworkingIdentity_SetSteamID64(&mut identity, steam_id64);
-
             // Both out-parameters are handed a struct even though only the ping
             // is read: two stack structs cost nothing, and the flat API's rules
             // about which of them may be null are not worth depending on.
@@ -203,7 +196,7 @@ pub mod networking {
 
             let state = sys::SteamAPI_ISteamNetworkingMessages_GetSessionConnectionInfo(
                 sys::SteamAPI_SteamNetworkingMessages_SteamAPI_v002(),
-                &identity,
+                &steam_identity(steam_id64),
                 &mut info,
                 &mut status,
             );
@@ -217,6 +210,20 @@ pub mod networking {
                 }
                 _ => None,
             }
+        }
+    }
+
+    /// A player's identity in the form the raw networking calls take it.
+    fn steam_identity(steam_id64: u64) -> sys::SteamNetworkingIdentity {
+        unsafe {
+            let mut identity = sys::SteamNetworkingIdentity {
+                m_eType: sys::ESteamNetworkingIdentityType::k_ESteamNetworkingIdentityType_Invalid,
+                m_cbSize: 0,
+                __bindgen_anon_1: sys::SteamNetworkingIdentity__bindgen_ty_2 { m_steamID64: 0 },
+            };
+            sys::SteamAPI_SteamNetworkingIdentity_Clear(&mut identity);
+            sys::SteamAPI_SteamNetworkingIdentity_SetSteamID64(&mut identity, steam_id64);
+            identity
         }
     }
 }
