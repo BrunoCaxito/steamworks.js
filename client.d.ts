@@ -484,7 +484,8 @@ export declare namespace networking {
   }
   /**
    * Send a message to another user. A session with them is opened implicitly
-   * if needed; delivery starts once they accept it.
+   * if needed; delivery starts once they accept it. A session that failed is
+   * reopened by the next message, and whatever it had not delivered is lost.
    */
   export function sendMessageToUser(steamId64: bigint, sendType: SendType, data: Buffer, channel: number): void
   /**

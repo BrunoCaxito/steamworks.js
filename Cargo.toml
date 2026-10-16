@@ -14,7 +14,7 @@ tokio = { version = "1", features = ["sync", "time"] }
 # raw-bindings re-exports `steamworks::sys`, needed for the handful of Steam calls
 # the safe wrapper does not cover: friend levels, rich presence reads, lobby member
 # data and lobby ownership.
-steamworks = { git = "https://github.com/Noxime/steamworks-rs/", rev = "fbb79635b06b4feea8261e5ca3e8ea3ef42facf9", features = ["serde", "raw-bindings"] }
+steamworks = { git = "https://github.com/Noxime/steamworks-rs/", rev = "ee61f95045724b8a4f958f3b386b654fe2480edf", features = ["serde", "raw-bindings"] }
 serde = "1"
 serde_json = "1"
 

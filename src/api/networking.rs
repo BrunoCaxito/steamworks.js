@@ -43,7 +43,8 @@ pub mod networking {
     }
 
     /// Send a message to another user. A session with them is opened implicitly
-    /// if needed; delivery starts once they accept it.
+    /// if needed; delivery starts once they accept it. A session that failed is
+    /// reopened by the next message, and whatever it had not delivered is lost.
     #[napi]
     pub fn send_message_to_user(
         steam_id64: BigInt,
@@ -51,15 +52,19 @@ pub mod networking {
         data: Buffer,
         channel: u32,
     ) -> Result<(), Error> {
+        let delivery = match send_type {
+            SendType::Unreliable => SendFlags::UNRELIABLE,
+            SendType::Reliable => SendFlags::RELIABLE,
+        };
+
         let client = crate::client::get_client();
         client
             .networking_messages()
             .send_message_to_user(
                 NetworkingIdentity::new_steam_id(SteamId::from_raw(steam_id64.get_u64().1)),
-                match send_type {
-                    SendType::Unreliable => SendFlags::UNRELIABLE,
-                    SendType::Reliable => SendFlags::RELIABLE,
-                },
+                // Without this, once a session fails every later send to that user
+                // fails too, until someone closes the session by hand.
+                delivery | SendFlags::AUTO_RESTART_BROKEN_SESSION,
                 &data,
                 channel,
             )
@@ -126,22 +131,9 @@ pub mod networking {
     pub fn accept_session_request(steam_id64: BigInt) -> bool {
         let steam_id64 = steam_id64.get_u64().1;
 
-        let Some(request) = SESSION_REQUESTS.lock().unwrap().remove(&steam_id64) else {
-            return false;
-        };
-
-        // The pinned steamworks-rs closes the session in `SessionRequest`'s Drop
-        // even after `accept()`, so every session died the moment it was accepted.
-        // Accepting through the raw binding and forgetting the request skips that
-        // Drop; all it keeps alive is one reference to the client, which lives for
-        // the whole process anyway. Remove once steamworks-rs is past the fix.
-        std::mem::forget(request);
-
-        unsafe {
-            sys::SteamAPI_ISteamNetworkingMessages_AcceptSessionWithUser(
-                sys::SteamAPI_SteamNetworkingMessages_SteamAPI_v002(),
-                &steam_identity(steam_id64),
-            )
+        match SESSION_REQUESTS.lock().unwrap().remove(&steam_id64) {
+            Some(request) => request.accept(),
+            None => false,
         }
     }
 
