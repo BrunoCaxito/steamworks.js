@@ -1,10 +1,12 @@
 /target
 # Upstream publishes the prebuilt binaries through npm, so it can ignore all of
 # dist. This fork is consumed straight from git instead, which packs only what
-# is committed: the Windows build has to be tracked or every install lands
+# is committed: every platform's build has to be tracked or installs on it land
 # without a native binding.
 /dist/*
 !/dist/win64
+!/dist/linux64
+!/dist/osx
 node_modules
 test/**/package-lock.json
 test/electron/steamworks.js-electron-test-*
